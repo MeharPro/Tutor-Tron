@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="https://favicon-1v5.pages.dev/favicon.png">
+    <title>Tutor-Tron - Teacher Registration</title>
+    <!-- Include Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <link rel="preconnect" href="https://accounts.google.com">
+    <link rel="dns-prefetch" href="https://accounts.google.com">
+    <!-- Google Sign-In Script -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <style>
+        /* Core variables */
+        :root {
+            --purple-400: #a78bfa;
+            --purple-500: #8b5cf6;
+            --purple-600: #7c3aed;
+            --pink-500: #ec4899;
+            --pink-600: #db2777;
+            --yellow-400: #facc15;
+        }
+
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #000;
+            color: #fff;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 1rem;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            background: linear-gradient(to right, var(--purple-400), var(--pink-600));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #9ca3af;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--purple-500);
+            box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(to right, var(--purple-500), var(--pink-500));
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 1.5rem;
+            color: #9ca3af;
+        }
+
+        .login-link a {
+            color: var(--purple-400);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .login-link a:hover {
+            color: var(--purple-500);
+        }
+
+        .or-divider {
+            margin: 20px 0;
+            text-align: center;
+            position: relative;
+            color: #9ca3af;
+        }
+
+        .or-divider::before,
+        .or-divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 45%;
+            height: 1px;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .or-divider::before {
+            left: 0;
+        }
+
+        .or-divider::after {
+            right: 0;
+        }
+
+        #googleSignInWrapper {
+            margin: 1rem 0;
+            display: flex;
+            justify-content: center;
+            min-height: 40px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 2s;
+        }
+
+        #registerMessage {
+            margin-top: 1rem;
+            text-align: center;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            <i data-lucide="bot-message-square"></i>
+            Teacher Registration
+        </h1>
+
+        <div id="googleSignInWrapper"></div>
+        
+        <div class="or-divider">OR</div>
+
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="registerName">Full Name</label>
+                <input type="text" id="registerName" required autocomplete="name">
+            </div>
+            <div class="form-group">
+                <label for="registerEmail">Email</label>
+                <input type="email" id="registerEmail" required autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="registerPassword">Password</label>
+                <input type="password" id="registerPassword" required minlength="8" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" required minlength="8" autocomplete="new-password">
+            </div>
+            <div class="form-group">
+                <label for="registerSchool">School Name</label>
+                <input type="text" id="registerSchool" required autocomplete="organization">
+            </div>
+            <button type="submit">Create Account</button>
+            <div id="registerMessage"></div>
+        </form>
+
+        <div class="login-link">
+            Already have an account? <a href="login.html">Login here</a>
+        </div>
+    </div>
+
+    <script>
+        // Google Sign-In Configuration
+        window.onGoogleLibraryLoad = function() {
+            google.accounts.id.initialize({
+                client_id: '859598219245-kqqo6kqnlkcdv5bni3ndrogtnq39c22k.apps.googleusercontent.com',
+                callback: handleGoogleSignIn,
+                context: 'signup',
+                ux_mode: 'popup',
+                auto_prompt: false,
+                itp_support: true
+            });
+            google.accounts.id.renderButton(
+                document.getElementById("googleSignInWrapper"), 
+                { 
+                    theme: "outline",
+                    size: "large",
+                    width: document.getElementById("googleSignInWrapper").offsetWidth,
+                    text: "signup_with"
+                }
+            );
+        };
+    </script>
+    <script src="register.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>

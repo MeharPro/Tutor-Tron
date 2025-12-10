@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor-Tron - Teacher Dashboard</title>
+    <link rel="icon" type="image/png" class="brightness" href="https://favicon-1v5.pages.dev/favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="dashboard.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="../protected/tutor-mode.js"></script>
+</head>
+<body>
+    <div class="container">
+        <button class="theme-toggle" onclick="toggleTheme()">
+            <i id="theme-icon" data-lucide="moon"></i>
+        </button>
+        <div class="logout">
+            <button onclick="logout()" class="logout-button">Logout</button>
+            <button onclick="window.location.href='dashboard'" class="logout-button">Dashboard</button>
+        </div>
+        
+        <div id="proBanner" class="pro-banner" style="display: none;">
+            <i data-lucide="star"></i> Welcome back, Pro Member! Enjoy your exclusive features!
+        </div>
+        
+        <h1>Tutor-Tron Activity Maker</h1>
+
+        <div class="mode-tabs"></div>
+
+        <div class="prompt-form"></div>
+
+        <div id="linksList" class="generated-links"></div>
+
+        <p class="footer">Created by Mehar K. and Shaurya B.</p>
+    </div>
+
+    <script src="/css.js"></script>
+    <script src="/teacher-dashboard.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+
+    <!-- Feature Request Button -->
+    <button style="display: none;" class="feature-request-btn" id="featureRequestBtn">
+        <i data-lucide="lightbulb"></i>
+        Request Feature
+    </button>
+
+    <!-- Feature Request Modal -->
+    <div class="modal-overlay" id="featureModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Request a Feature</h3>
+                <button class="close-modal" id="closeModal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form class="feature-form" id="featureForm">
+                <div class="form-group">
+                    <label for="featureTitle">Feature Title</label>
+                    <input type="text" id="featureTitle" name="featureTitle" required 
+                           placeholder="Brief title for your feature request">
+                </div>
+                <div class="form-group">
+                    <label for="featureDescription">Description</label>
+                    <textarea id="featureDescription" name="featureDescription" required
+                             placeholder="Describe the feature you'd like to see..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="featureImpact">Expected Impact</label>
+                    <textarea id="featureImpact" name="featureImpact" required
+                             placeholder="How would this feature improve your experience?"></textarea>
+                </div>
+                <button type="submit" class="submit-feature">Submit Request</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Feature Request Modal Functionality
+        const featureModal = document.getElementById('featureModal');
+        const featureBtn = document.getElementById('featureRequestBtn');
+        const closeModal = document.getElementById('closeModal');
+        const featureForm = document.getElementById('featureForm');
+
+        featureBtn.addEventListener('click', () => {
+            featureModal.style.display = 'flex';
+        });
+
+        closeModal.addEventListener('click', () => {
+            featureModal.style.display = 'none';
+        });
+
+        featureModal.addEventListener('click', (e) => {
+            if (e.target === featureModal) {
+                featureModal.style.display = 'none';
+            }
+        });
+
+        featureForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                title: document.getElementById('featureTitle').value,
+                description: document.getElementById('featureDescription').value,
+                impact: document.getElementById('featureImpact').value,
+                timestamp: new Date().toISOString(),
+                page: 'teacher-dashboard'
+            };
+
+            try {
+                const response = await fetch('/api/feature-request', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                if (response.ok) {
+                    alert('Feature request submitted successfully!');
+                    featureForm.reset();
+                    featureModal.style.display = 'none';
+                } else {
+                    throw new Error('Failed to submit feature request');
+                }
+            } catch (error) {
+                alert('Error submitting feature request. Please try again.');
+                console.error('Error:', error);
+            }
+        });
+    </script>
+</body>
+</html>

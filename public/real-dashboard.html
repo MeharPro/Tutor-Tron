@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dizon AI Dashboard</title>
+    <link rel="stylesheet" href="dizon.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="icon" type="image/png" class="saturate" href="https://favicon-1v5.pages.dev/favicon.png">
+    <style>
+        .saturate {
+            filter: saturate(3);
+        }
+    </style>
+    <script src="dizon.js"></script>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
+    <header class="bg-slate-900 p-4 flex items-center justify-between">
+        <img src="https://dizon-logo.pages.dev/dizon.png" alt="Dizon AI Logo" class="w-18 h-12">
+        <div class="flex items-center space-x-4">
+            <button onclick="openSettings()" class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
+                <i data-lucide="settings" class="w-6 h-6 text-white"></i>
+            </button>
+            <div class="relative ml-3" id="profileMenuContainer">
+                <button id="profileButton" class="flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                    <span class="sr-only">Open user menu</span>
+                    <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                        <i data-lucide="user" class="w-5 h-5 text-white"></i>
+                    </div>
+                </button>
+                <div id="profileMenu" class="hidden absolute right-0 z-10 mt-2 w-48 origin-top-right rounded-md bg-slate-800 py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <a href="#" class="block px-4 py-2 text-white hover:bg-slate-700" onclick="openSettings()">Settings</a>
+                    <a href="#" class="block px-4 py-2 text-white hover:bg-slate-700" onclick="manageSubscription()">Subscription</a>
+                    <a href="#" class="block px-4 py-2 text-white hover:bg-slate-700" onclick="logout()">Logout</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Left Column -->
+            <div class="col-span-12 md:col-span-3 space-y-6">
+                <div class="bg-slate-800 rounded-xl p-6 shadow-lg">
+                    <div class="flex flex-col items-center space-y-4">
+                        <div class="w-20 h-20 bg-blue-500 rounded-full flex items-center justify-center">
+                            <i data-lucide="user" class="w-12 h-12 text-white"></i>
+                        </div>
+                        <div class="text-center">
+                            <h2 id="userName" class="text-xl font-semibold text-white mb-1">Loading...</h2>
+                            <p id="userEmail" class="text-gray-400 text-sm mb-2">Loading...</p>
+                            <div id="membershipType" class="inline-flex items-center px-3 py-1 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 text-black font-semibold text-sm shadow-lg">
+                                <svg class="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 15.4L7.2 18L8.4 12.6L4 9L9.6 8.8L12 3.6L14.4 8.8L20 9L15.6 12.6L16.8 18L12 15.4Z" fill="currentColor"/>
+                                </svg>
+                                Loading...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-xl p-6 shadow-lg h-[200px]">
+                    <h2 class="text-xl font-semibold text-white mb-4">Most Used</h2>
+                    <div class="space-y-3">
+                        <div onclick="window.location.href='/tutor-tron'" class="flex items-center space-x-3 text-gray-300 hover:text-white cursor-pointer">
+                            <i data-lucide="history" class="w-5 h-5"></i>
+                            <span>Last Tutor-Tron Session</span>
+                        </div>
+                        <div onclick="window.location.href='/lesson-maker'" class="flex items-center space-x-3 text-gray-300 hover:text-white cursor-pointer">
+                            <i data-lucide="history" class="w-5 h-5"></i>
+                            <span>Recent Quiz</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 rounded-xl p-6 shadow-lg h-[200px]">
+                    <h2 class="text-xl font-semibold text-white mb-4">Suggestions</h2>
+                    <div class="space-y-3">
+                        <div onclick="window.location.href='/quizify'" class="flex items-center space-x-3 text-gray-300 hover:text-white cursor-pointer">
+                            <i data-lucide="lightbulb" class="w-5 h-5 text-yellow-500"></i>
+                            <span>Try Quizify with your notes</span>
+                        </div>
+                        <div onclick="window.location.href='/tutor-tron'" class="flex items-center space-x-3 text-gray-300 hover:text-white cursor-pointer">
+                            <i data-lucide="lightbulb" class="w-5 h-5 text-yellow-500"></i>
+                            <span>Start a tutoring session</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-span-12 md:col-span-9">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div onclick="window.location.href='/tutor-tron'" class="bg-slate-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                        <h2 class="text-xl font-semibold text-white mb-4">Tutor-Tron</h2>
+                        <div class="flex flex-col items-center text-gray-300">
+                            <i data-lucide="bot" class="w-16 h-16 mb-4 text-blue-500"></i>
+                            <p class="text-center">Create interactive learning experiences</p>
+                        </div>
+                    </div>
+                    <div onclick="window.location.href='/quizify'" class="bg-slate-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                        <h2 class="text-xl font-semibold text-white mb-4">Quizify</h2>
+                        <div class="flex flex-col items-center text-gray-300">
+                            <i data-lucide="clipboard-check" class="w-16 h-16 mb-4 text-green-500"></i>
+                            <p class="text-center">Generate quizzes from any document</p>
+                        </div>
+                    </div>
+                    <div onclick="window.location.href='/lesson-maker'" class="bg-slate-800 rounded-xl p-6 shadow-lg hover:shadow-xl transition-shadow cursor-pointer">
+                        <h2 class="text-xl font-semibold text-white mb-4">Lesson Maker</h2>
+                        <div class="flex flex-col items-center text-gray-300">
+                            <i data-lucide="book-open" class="w-16 h-16 mb-4 text-purple-500"></i>
+                            <p class="text-center">Create engaging lesson plans</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- To Do List -->
+                <div class="bg-slate-800 rounded-xl p-6 shadow-lg">
+                    <h2 class="text-xl font-semibold text-white mb-4">To Do List</h2>
+                    <div class="flex space-x-2 mb-4">
+                        <form class="flex w-full space-x-2">
+                            <input type="text" 
+                                id="newTodo" 
+                                name="todo-task" 
+                                autocomplete="off" 
+                                placeholder="Add a new task..." 
+                                class="flex-grow bg-slate-700 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button onclick="addTodo()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 flex-shrink-0">
+                                Add
+                            </button>
+                        </form>
+                    </div>
+                    <ul id="todoList" class="space-y-2 max-h-[300px] overflow-y-auto">
+                        <!-- Todo items will be inserted here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center hidden z-50">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl w-[450px] border border-slate-700">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="text-2xl font-bold text-white">Account Settings</h2>
+                <button onclick="closeSettings()" class="text-gray-400 hover:text-white transition-colors">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <div>
+                    <label for="settingsEmail" class="block text-gray-300 text-sm font-medium mb-2">Email Address</label>
+                    <input type="email" id="settingsEmail" readonly disabled
+                        class="w-full bg-slate-700/50 text-gray-400 rounded-lg px-4 py-3 cursor-not-allowed border border-slate-600">
+                </div>
+                <div>
+                    <label for="settingsPassword" class="block text-gray-300 text-sm font-medium mb-2">New Password</label>
+                    <input type="password" id="settingsPassword" placeholder="Enter new password"
+                        class="w-full bg-slate-700 text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-slate-600 hover:border-slate-500 transition-colors">
+                </div>
+                <div class="bg-slate-700/30 rounded-lg p-4 border border-slate-600">
+                    <label class="block text-gray-300 text-sm font-medium mb-2">Current Plan</label>
+                    <div id="settingsSubscriptionType" class="text-white font-medium"></div>
+                </div>
+            </div>
+            
+            <div class="mt-8 flex justify-end space-x-4">
+                <button onclick="closeSettings()" 
+                    class="px-5 py-2.5 text-gray-300 hover:text-white transition-colors font-medium">
+                    Cancel
+                </button>
+                <button onclick="saveSettings()" 
+                    class="bg-blue-500 text-white px-5 py-2.5 rounded-lg hover:bg-blue-600 transition-colors font-medium shadow-lg shadow-blue-500/20">
+                    Update Password
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

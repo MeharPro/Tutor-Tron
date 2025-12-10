@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lesson Maker</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="slides.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <link rel="icon" type="image/png" class="brightness" href="https://favicon-1v5.pages.dev/favicon.png">
+    <style>
+        /* slides.css - COMPLETE, TESTED CSS */
+
+        .brightness {
+            filter: brightness(0.25);
+        }
+
+        /* Core variables */
+        :root {
+            --purple-400: #a78bfa;
+            --purple-500: #8b5cf6;
+            --purple-600: #7c3aed;
+            --pink-500: #ec4899;
+            --pink-600: #db2777;
+            --yellow-400: #facc15;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #000;
+            color: #fff;
+        }
+
+        .app {
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 240px;
+            background: rgba(20, 20, 20, 0.95);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+        }
+
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .slideshow-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            margin: 0;
+            padding: 0.5rem 0;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90%;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .sidebar-header input[type="text"],
+        .sidebar-header input[type="number"] {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-size: 14px;
+            background: rgba(30, 30, 30, 0.95);
+            color: #fff;
+        }
+
+        .sidebar-header input[type="number"] {
+            width: 60px;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: linear-gradient(to right, var(--purple-400), var(--pink-600));
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(123, 58, 237, 0.3);
+        }
+
+        .slides-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .slide-item {
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(30, 30, 30, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+        }
+
+        .slide-item.active {
+            background: linear-gradient(to right, var(--purple-400), var(--pink-600));
+            color: white;
+            border: none;
+        }
+
+        .slide-item:hover:not(.active) {
+            background: rgba(40, 40, 40, 0.95);
+        }
+
+        .slide-thumbnail {
+            width: 60px;
+            height: 34px;
+            background: rgba(40, 40, 40, 0.95);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .slide-item.active .slide-thumbnail {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            flex-direction: column;
+            padding: 20px;
+            background: #000;
+        }
+
+        .preview {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 0;
+            padding: 20px;
+        }
+
+        #slidePreview {
+            width: 100%;
+            height: 100%;
+            max-width: calc((100vh - 160px) * 16/9);
+            max-height: calc(100% - 40px);
+            min-height: 400px;
+            background: white;
+            box-shadow: 0 8px 32px rgba(123, 58, 237, 0.2);
+            border-radius: 12px;
+            position: relative;
+            aspect-ratio: 16/9;
+            padding: 40px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-columns: 60% 40%;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .slide-content {
+            grid-column: 1;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #slidePreview h1 {
+            font-size: min(3vw, 32px);
+            margin-bottom: 20px;
+            color: #1a1a1a;
+            grid-column: 1 / -1;
+            outline: none;
+            border: 1px solid transparent;
+            padding: 5px;
+        }
+
+        #slidePreview ul {
+            font-size: min(2vw, 18px);
+            margin: 10px 0;
+            padding-left: 25px;
+            list-style-type: none;
+            overflow: hidden;
+        }
+
+        #slidePreview li {
+            margin: 8px 0;
+            color: #333;
+            line-height: 1.4;
+            position: relative;
+            padding-left: 20px;
+            outline: none;
+            border: 1px solid transparent;
+            padding: 5px 5px 5px 25px;
+        }
+
+        #slidePreview li::before {
+            content: "•";
+            position: absolute;
+            left: 5px;
+            color: #333;
+        }
+
+        .slide-image {
+            grid-column: 2;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            border-radius: 4px;
+        }
+
+        .image-caption {
+            font-size: min(2vw, 14px);
+            color: #666;
+            margin-top: 8px;
+            text-align: center;
+            max-width: 90%;
+            margin: 8px auto 0;
+            outline: none;
+            border: 1px solid transparent;
+            padding: 2px;
+        }
+
+        .actions {
+            padding: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .actions button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(to right, var(--purple-400), var(--pink-600));
+            color: white;
+            min-width: 140px;
+        }
+
+        .actions button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(123, 58, 237, 0.1);
+        }
+
+        #exportPptxBtn {
+            background: linear-gradient(to right, #10b981, #34d399);
+        }
+
+        #exportPptxBtn:hover {
+            box-shadow: 0 4px 6px rgba(16, 185, 129, 0.1);
+        }
+
+        /* Styles for the initial input overlay */
+        #inputOverlay {
+            display: flex;
+            /* Initially visible */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1001;
+            /* Make sure it's on top of everything initially */
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Corrected: Removed extra overlay styles, simplified loading overlay */
+        #loadingOverlay {
+            display: none;
+            /* Initially hidden */
+            position: fixed;
+            /*  Use fixed positioning */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            /* Semi-transparent black */
+            z-index: 1000;
+            /*  Below image edit, but above other content*/
+            justify-content: center;
+            /* Center content */
+            align-items: center;
+            /* Center content */
+            color: white;
+            /*  Text color */
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            /*  Use a distinct color */
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            /* Center the spinner */
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Basic styling for image edit - keep this consistent */
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1001;
+        }
+
+        #imageEditDialog {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 20, 20, 0.95);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1002;
+            width: 400px;
+            max-width: 90%;
+            backdrop-filter: blur(8px);
+        }
+
+        #imageEditDialog h3 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            color: #fff;
+        }
+
+        #imageEditDialog input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-size: 14px;
+            background: rgba(30, 30, 30, 0.95);
+            color: #fff;
+        }
+
+        .dialog-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .overlay-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .overlay-content h2 {
+            margin: 0;
+            color: #333;
+            text-align: center;
+            font-size: 1.5rem;
+        }
+
+        .overlay-content textarea {
+            width: 100%;
+            height: 300px;
+            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: vertical;
+            font-size: 16px;
+            line-height: 1.5;
+            color: #333;
+            background: white;
+        }
+
+        .overlay-content .input-row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .overlay-content .input-row label {
+            flex: 1;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .overlay-content .input-row input {
+            width: 100px;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            color: #333;
+            background: white;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(30, 30, 30, 0.95);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--purple-400);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--purple-500);
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Input Overlay (Corrected: Keep this, and style for initial display) -->
+    <div id="inputOverlay" class="overlay" style="display: flex;">
+        <div class="overlay-content">
+            <a href="/dashboard" style="
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: linear-gradient(to right, var(--purple-400), var(--pink-600));            ;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            z-index: 1000;
+            text-decoration: none;
+          ">
+            <span style="
+              display: inline-block;
+              margin-right: 10px;
+              transform: translateX(0);
+              transition: transform 0.3s ease;
+            ">←</span>
+            Back to dashboard
+          </a>
+            <h2>Create New Slideshow</h2>
+            <textarea id="topicInput" placeholder="Enter your topic here..."></textarea>
+            <div class="input-row">
+                <label for="slideNumInput">Number of Slides (40 MAX):</label>
+                <input type="number" id="slideNumInput" value="5" min="1" max="40">
+            </div>
+            <button id="generateBtn">Generate Slides</button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay (Keep this) -->
+    <div id="loadingOverlay" class="overlay loading-overlay">
+        <div class="overlay-content">
+            <h2>Generating Your Slides</h2>
+            <div class="loading-spinner"></div>
+            <p>Please wait while we create your presentation...</p>
+        </div>
+    </div>
+
+    <div class="app">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div id="slideshowTitle" class="slideshow-title">New Slideshow</div>
+            </div>
+            <div id="slidesList" class="slides-list"></div>
+        </div>
+
+        <div class="content">
+            <div class="preview">
+                <div id="slidePreview" contenteditable="true" spellcheck="false"></div>
+            </div>
+            <div class="actions">
+                <a href="/dashboard">
+                    <button id="backbutton">Go to Dashboard</button>
+                </a>
+                <button id="exportBtn">Export PDF</button>
+                <button id="exportPptxBtn">Export PowerPoint</button>
+                <button onclick="location.reload()">New Slideshow</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Edit Dialog (Corrected: Add id="overlay") -->
+    <div id="imageEditDialog" class="image-edit-dialog" style="display: none;">
+        <h3>Edit Image</h3>
+        <p style="margin-bottom: 16px; color: rgba(255, 255, 255, 0.7);">Click 'Update' to generate a new image with the
+            description below:</p>
+        <input type="text" id="imageDescription" placeholder="Enter image description">
+        <div class="dialog-buttons">
+            <button onclick="closeImageDialog()">Cancel</button>
+            <button onclick="updateImageDescription()" style="background: var(--purple-400);">Update</button>
+        </div>
+    </div>
+
+    <!-- Overlay for Image Editing (Corrected: Add this div) -->
+    <div id="overlay" style="display: none;"></div>
+
+    <script src="lesson-maker.js"></script>
+</body>
+
+</html>

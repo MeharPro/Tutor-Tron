@@ -1,0 +1,43 @@
+.auth-container {
+    max-width: 400px;
+    margin: 50px auto;
+    padding: 2rem;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.error-message {
+    color: #dc2626;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.success-message {
+    color: #059669;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+}
+
+button {
+    width: 100%;
+    margin-top: 1rem;
+}

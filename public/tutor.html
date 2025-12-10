@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="https://favicon-1v5.pages.dev/favicon.png">
+    <title>Tutor-Tron</title>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6531771326648501"
+     crossorigin="anonymous"></script>
+    <!-- Immediate mode detection and theme application -->
+    <script>
+        window.TUTOR_CONFIG = {
+            subject: "{{SUBJECT}}",
+            prompt: "{{PROMPT}}",
+            mode: "{{MODE}}",
+            language: "{{LANGUAGE}}",
+            isPro: "{{IS_PRO}}" === "true",
+            enableEvaluation: "{{ENABLE_EVALUATION}}" === "true",
+            creatorEmail: "{{CREATOR_EMAIL}}"
+        };
+        
+        let fullscreenEnforcer;
+        let sessionCode;
+        let visibilityTimeout;
+        let selectedLanguage = window.TUTOR_CONFIG.language || 'English';
+
+        // Track if we're intentionally reloading
+        window.intentionalReload = false;
+        window.fullscreenWarningTimerId = null;
+        
+        // Handle window switching
+        window.addEventListener('blur', () => {
+            if (!window.isEvaluationComplete && window.location.pathname.includes('/evaluate/')) {
+                startInactivityTimer();
+            }
+        });
+
+        window.addEventListener('focus', () => {
+            clearInactivityTimer();
+        });
+
+        function startInactivityTimer() {
+            clearInactivityTimer(); // Clear any existing timer
+            visibilityTimeout = setTimeout(() => {
+                if (!window.isEvaluationComplete && !document.hasFocus()) {
+                    window.intentionalReload = true;
+                    alert('You left the evaluation window for too long. The page will reload.');
+                    window.location.reload();
+                }
+            }, 5000);
+        }
+
+        function clearInactivityTimer() {
+            if (visibilityTimeout) {
+                clearTimeout(visibilityTimeout);
+                visibilityTimeout = null;
+            }
+        }
+
+        // Keep two separate message histories
+        window.messageHistory = []; // Full history with evaluation data
+        window.displayHistory = []; // Clean history without evaluation data
+
+        // Handle escape key for evaluation completion
+        document.addEventListener('keydown', async (e) => {
+            if (e.key === 'Escape' && document.fullscreenElement) {
+                e.preventDefault(); // Prevent default escape behavior
+                e.stopPropagation(); // Stop event propagation
+                
+                // Show warning message
+                if (!confirm('ARE YOU SURE?')) {
+                    // If user clicks cancel, stay in fullscreen
+                    return;
+                }
+                
+                // If user clicks OK, reload the page
+                window.location.reload();
+                return;
+                
+                // Check if there's evaluation data
+                const messages = document.querySelectorAll('.message');
+                const lastMessage = messages[messages.length - 1];
+                if (lastMessage && lastMessage.textContent.includes('{') && 
+                    lastMessage.textContent.includes('}') && 
+                    lastMessage.textContent.toLowerCase().includes('level')) {
+                    
+                    console.log('Evaluation message detected, completing evaluation');
+                    window.isEvaluationComplete = true;
+                    lastMessage.style.display = 'none';
+
+                   // Create transcript and submit evaluation
+                    try {
+                        const formattedTranscript = window.messageHistory
+                            .map(msg => `${msg.role === 'assistant' ? '🤖 Tutor-tron' : '👤 User'}:\n${msg.content}`)
+                            .join('\n\n\n');
+
+                        const linkId = window.location.pathname.split('/').pop();
+
+                        // Get the creator email
+                        const emailResponse = await fetch(`/api/links/${linkId}/creator`);
+                        if (!emailResponse.ok) {
+                            throw new Error(`Failed to get creator email: ${emailResponse.statusText}`);
+                        }
+                        const { creatorEmail } = await emailResponse.json();
+                        console.log('Got creator email:', creatorEmail);
+                       // Submit to the database
+                        const response = await fetch('/api/submit-evaluation', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                linkId,
+                                sessionCode,
+                                content: formattedTranscript, //Use formatted Transcript for the content
+                                creatorEmail
+                            })
+                        });
+
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            console.error('Failed to submit evaluation:', {
+                                status: response.status,
+                                statusText: response.statusText,
+                                error: errorData
+                            });
+
+
+                            throw new Error(`Failed to submit evaluation: ${errorData.error}`);
+                        }
+
+                        const result = await response.json();
+                        console.log('Evaluation submitted successfully:', result);
+                        
+                        // Show success message to user
+                        const messageContainer = document.querySelector('.messages');
+                        if (messageContainer) {
+                            const successMessage = document.createElement('div');
+                            successMessage.className = 'system-message success';
+                            successMessage.innerHTML = `
+                                <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; margin: 10px 0;">
+                                    ✅ Evaluation submitted successfully
+                                </div>
+                            `;
+                            messageContainer.appendChild(successMessage);
+                        }
+
+                        // Exit fullscreen
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen();
+                        }
+                        // Show completion message
+                        alert('Evaluation completed successfully! You may now close this window.');
+                        window.location.reload();
+                    } catch (error) {
+                        console.error('Error submitting evaluation data:', error);
+                        showError(`Failed to submit evaluation: ${error.message}`);
+                    }
+                }
+            }
+        });
+
+        // *** NEW ***: Reusable function for submitting the evaluation
+        async function handleEvaluationSubmission() {
+            console.log('Evaluation submission triggered.');
+            window.isEvaluationComplete = true;
+            if (fullscreenEnforcer) {
+                clearInterval(fullscreenEnforcer);
+            }
+        
+            // Also copy chat to clipboard as a fallback for the user
+            const chatContent = window.displayHistory
+                .map(msg => `${msg.role === 'assistant' ? '🤖 Tutor-tron' : '👤 User'}:\n${msg.content}`)
+                .join('\n\n\n');
+            const textToCopy = `Session Code: ${sessionCode}\n\n${chatContent}`;
+        
+            try {
+                await navigator.clipboard.writeText(textToCopy);
+                console.log('Session code and chat copied to clipboard');
+            } catch (err) {
+                console.error('Failed to copy to clipboard:', err);
+            }
+        
+            try {
+                showLoading();
+        
+                // Use messageHistory for transcript to keep evaluation data
+                const formattedTranscript = window.messageHistory
+                    .filter(msg => msg.role !== 'system')
+                    .map(msg => `${msg.role === 'assistant' ? '🤖 Tutor-tron' : '👤 User'}:\n${msg.content}`)
+                    .join('\n\n\n');
+        
+                const linkId = window.location.pathname.split('/').pop();
+        
+                // Get creator email
+                const emailResponse = await fetch(`/api/links/${linkId}/creator`);
+                if (!emailResponse.ok) {
+                    throw new Error(`Failed to get creator email: ${emailResponse.statusText}`);
+                }
+                const { creatorEmail } = await emailResponse.json();
+                console.log('Got creator email:', creatorEmail);
+        
+                // Submit to the database
+                const response = await fetch('/api/submit-evaluation', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        linkId,
+                        sessionCode,
+                        content: formattedTranscript,
+                        creatorEmail
+                    })
+                });
+        
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Failed to submit evaluation:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        error: errorData
+                    });
+                    // We throw here, but the catch block won't show a different message to the user
+                    throw new Error(`Failed to submit evaluation: ${errorData.error}`);
+                }
+        
+                const result = await response.json();
+                console.log('Evaluation submitted successfully:', result);
+        
+            } catch (error) {
+                // Log the error for debugging, but don't show it to the user
+                console.error('Error sending evaluation data:', error);
+            } finally {
+                // This block runs regardless of success or failure
+                hideLoading();
+                if (document.fullscreenElement) {
+                    await document.exitFullscreen().catch(err => console.error("Error exiting fullscreen:", err));
+                }
+                // Always show the same completion message
+                alert('Evaluation complete.');
+                window.intentionalReload = true; // Mark reload as intentional to prevent exit warnings
+                window.location.reload();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Update title and subject
+            const subject = window.TUTOR_CONFIG.subject;
+            document.getElementById('pageTitle').textContent = `Tutor-Tron AI - ${subject}`;
+            document.getElementById('subjectTitle').textContent = subject;
+            
+            // Set mode
+            const mode = window.TUTOR_CONFIG.mode.toLowerCase();
+            if (mode) {
+                document.documentElement.className = mode;
+            }
+
+            // Load saved theme preference
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            document.getElementById('themeToggle').checked = savedTheme === 'dark';
+
+            // Add language selection handler with dynamic update for Pro users
+        const languageSelect = document.getElementById('languageSelect');
+        if (languageSelect) {
+            // Set initial language from TUTOR_CONFIG
+            selectedLanguage = window.TUTOR_CONFIG.language || 'English';
+            languageSelect.value = selectedLanguage;
+
+            languageSelect.addEventListener('change', (e) => {
+                selectedLanguage = e.target.value;
+                window.TUTOR_CONFIG.language = selectedLanguage;
+
+                // Only update for Pro users
+                if (window.TUTOR_CONFIG.isPro) {
+                    // Update system prompt in messageHistory
+                    const systemMessage = window.messageHistory.find(msg => msg.role === 'system');
+                    if (systemMessage) {
+                        // Remove existing language instruction if present
+                        systemMessage.content = systemMessage.content.replace(/No matter what the user responds in, STRICTLY respond in .*\.$/, '');
+                        // Add new language instruction for Pro users if not English
+                        if (selectedLanguage) {
+                            systemMessage.content += ` No matter what the user responds in, STRICTLY respond in ${selectedLanguage}.`;
+                        } else {
+                            // Ensure the prompt is clean if switching back to English
+                            systemMessage.content = systemMessage.content.trim();
+                        }
+                        console.log('Updated system prompt with new language:', systemMessage.content);
+
+                        // Add a system message to confirm the change
+                        const chatContainer = document.getElementById('chatContainer');
+                        if (chatContainer) {
+                            const noticeDiv = document.createElement('div');
+                            noticeDiv.className = 'message system-message';
+                            noticeDiv.innerHTML = `
+                                <div style="background: #e9ecef; color: #495057; padding: 10px; border-radius: 4px; margin: 10px 0; text-align: center;">
+                                    Language set to ${selectedLanguage}. The next response will be in this language.
+                                </div>
+                            `;
+                            chatContainer.appendChild(noticeDiv);
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        }
+                    }
+                } else {
+                    console.log('Language change ignored: Pro feature only');
+                    const chatContainer = document.getElementById('chatContainer');
+                    if (chatContainer) {
+                        const noticeDiv = document.createElement('div');
+                        noticeDiv.className = 'message system-message';
+                        noticeDiv.innerHTML = `
+                            <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 4px; margin: 10px 0; text-align: center;">
+                                Language selection is a Pro feature. Responses will remain in English.
+                            </div>
+                        `;
+                        chatContainer.appendChild(noticeDiv);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
+                }
+            });
+        }
+            
+
+            // Setup evaluation mode if enabled
+            if (window.TUTOR_CONFIG.enableEvaluation) {
+                console.log('Enabling evaluation mode');
+                
+                // Generate session code
+                sessionCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+                console.log('Generated session code:', sessionCode);
+                
+                // Add styles for evaluation mode
+                const style = document.createElement('style');
+                style.textContent = `
+                    .session-code {
+                        position: fixed;
+                        top: 10px;
+                        right: 10px;
+                        background: #fff;
+                        padding: 8px 12px;
+                        border-radius: 4px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                        z-index: 1000;
+                        font-family: monospace;
+                        color: #000;
+                    }
+                    .done-button {
+                        background: #dc3545;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 4px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        height: 35px;
+                        line-height: 1;
+                        margin-left: auto;
+                    }
+                    .done-button:hover {
+                        background: #c82333;
+                    }
+                    .done-button.action-button {
+                        background: #dc3545;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 4px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        height: 35px;
+                        line-height: 1;
+                        margin-left: auto;
+                    }
+                    .done-button.action-button:hover {
+                        background: #c82333;
+                    }
+                    .fullscreen-overlay {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0,0,0,0.95);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 10000;
+                        color: white;
+                        font-size: 24px;
+                        text-align: center;
+                        cursor: pointer;
+                    }
+                    .button-container {
+                        display: flex;
+                        gap: 8px;
+                        align-items: center;
+                        position: relative;
+                        z-index: 1000;
+                        width: 100%;
+                        justify-content: space-between;
+                    }
+                    .action-buttons {
+                        display: flex;
+                        gap: 8px;
+                        align-items: center;
+                    }
+                    .evaluation-message {
+                        white-space: pre-line;
+                        font-family: monospace;
+                        line-height: 1.5;
+                        padding: 15px;
+                        border-radius: 4px;
+                    }
+                    .evaluation-message.has-levels {
+                        background: #e8f5e9;
+                        border: 1px solid #c8e6c9;
+                    }
+                `;
+                document.head.appendChild(style);
+
+                // Create fullscreen overlay with higher z-index
+                const overlay = document.createElement('div');
+                overlay.className = 'fullscreen-overlay';
+                overlay.innerHTML = `
+                    <div>
+                        <h1 style="font-size: 36px; margin-bottom: 20px;">Evaluation Session</h1>
+                        <p style="font-size: 20px; max-width: 600px; line-height: 1.6;">
+                            Click anywhere to start the evaluation in fullscreen mode.<br>
+                            You must complete the entire session to exit fullscreen. <br> 
+                            At the end you MUST click DONE to complete the evaluation. If you try to exit fullscreen, the evaluation will be cancelled. <br>
+                            <strong>Ctrl-F is not permissible.</strong> 
+                        </p>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+
+                // Add session code display
+                const sessionDisplay = document.createElement('div');
+                sessionDisplay.className = 'session-code';
+                sessionDisplay.textContent = `Session: ${sessionCode}`;
+                document.body.appendChild(sessionDisplay);
+
+                // Create button container and add DONE button next to copy chat
+                const copyButton = document.querySelector('#copyButton');
+                if (copyButton) {
+                    console.log('Found copy button:', copyButton);
+                    
+                    const inputContainer = document.querySelector('.input-container');
+                    if (!inputContainer) {
+                        console.error('Input container not found');
+                        return;
+                    }
+                    
+                    let actionContainer = inputContainer.querySelector('.button-container');
+                    if (!actionContainer) {
+                        actionContainer = document.createElement('div');
+                        actionContainer.className = 'button-container';
+                        inputContainer.appendChild(actionContainer);
+                        console.log('Created action container');
+                    }
+                    const doneButton = document.createElement('button');
+                    doneButton.className = 'done-button action-button';
+                    doneButton.innerHTML = '<i class="fas fa-check" style="display: none;"></i> DONE';
+                    actionContainer.appendChild(doneButton);
+
+                    // *** MODIFIED ***: Done button now calls the submission handler directly
+                    doneButton.addEventListener('click', handleEvaluationSubmission);
+
+                    // *** NEW ***: Add a listener for the copy button to act as a "Done" button in codethrough mode
+                    const copyChatButton = document.querySelector('#copyButton');
+                    if (copyChatButton) {
+                        copyChatButton.addEventListener('click', (e) => {
+                            const isCodethroughEval = window.TUTOR_CONFIG.enableEvaluation &&
+                                                      window.TUTOR_CONFIG.mode.toLowerCase() === 'codethrough';
+                            
+                            if (isCodethroughEval) {
+                                console.log('Copy Chat clicked in codethrough evaluation mode. Submitting...');
+                                // Prevent the original copy logic from tutor.js from running
+                                e.preventDefault();
+                                e.stopPropagation();
+                                e.stopImmediatePropagation();
+                                // Trigger the same submission process as the "Done" button
+                                handleEvaluationSubmission();
+                            }
+                            // If not in codethrough eval mode, do nothing and let the original handler from tutor.js run.
+                        }, true); // Use capture phase to ensure this listener runs first.
+                    }
+
+                    const existingSessionDisplays = document.querySelectorAll('.session-code');
+                    existingSessionDisplays.forEach((display, index) => {
+                        if (index > 0) { 
+                            display.remove();
+                        }
+                    });
+                } else {
+                    console.error('Copy button not found');
+                }
+
+                // Function to request fullscreen
+                async function requestFullscreen() {
+                    try {
+                        const elem = document.documentElement;
+                        if (elem.requestFullscreen) {
+                            await elem.requestFullscreen();
+                        } else if (elem.webkitRequestFullscreen) {
+                            await elem.webkitRequestFullscreen();
+                        } else if (elem.msRequestFullscreen) {
+                            await elem.msRequestFullscreen();
+                        } else if (elem.mozRequestFullScreen) {
+                            await elem.mozRequestFullScreen();
+                        }
+                        if (overlay && overlay.parentNode) {
+                            overlay.parentNode.removeChild(overlay);
+                        }
+                    } catch (err) {
+                        console.error('Error attempting to enable full-screen mode:', err);
+                    }
+                }
+
+                // Try to enter fullscreen immediately
+                requestFullscreen();
+
+                // Also enter fullscreen on overlay click
+                overlay.addEventListener('click', requestFullscreen);
+
+                // Aggressive fullscreen enforcement
+                fullscreenEnforcer = setInterval(() => {
+                    if (!document.fullscreenElement && !window.isEvaluationComplete) {
+                        requestFullscreen();
+                    }
+                }, 100);
+
+                // Prevent exiting fullscreen except through DONE button or confirmed Escape
+                document.addEventListener('fullscreenchange', async () => {
+                    // --- Handle Exiting Fullscreen ---
+                    if (!document.fullscreenElement && !window.isEvaluationComplete && !window.intentionalReload) {
+
+                        // Clear any previous warning timer just in case (belt and suspenders)
+                        if (window.fullscreenWarningTimerId) {
+                            clearInterval(window.fullscreenWarningTimerId);
+                            window.fullscreenWarningTimerId = null;
+                        }
+                        // Remove any stray overlays
+                        const existingOverlay = document.getElementById('fullscreenOverlay');
+                        if (existingOverlay) {
+                            existingOverlay.remove();
+                        }
+
+                        if (confirm('ARE YOU SURE? You\'ll LOSE ALL OF YOUR PROGRESS if you exit fullscreen.')) {
+                            window.intentionalReload = true;
+                            window.location.reload();
+                        } else {
+                            // ----- User cancelled: Start Countdown and Overlay -----
+                            let timeLeft = 5;
+                            // Flag remains useful to immediately stop timer logic on click, even before interval clears
+                            let overlayHasBeenClicked = false;
+
+                            const overlay = document.createElement('div');
+                            overlay.id = 'fullscreenOverlay'; // Use ID to find/remove later
+                            overlay.className = 'loading-overlay'; // Ensure CSS for this exists or use inline styles
+                            overlay.style.cursor = 'pointer';
+                            overlay.style.position = 'fixed';
+                            overlay.style.top = '0';
+                            overlay.style.left = '0';
+                            overlay.style.width = '100%';
+                            overlay.style.height = '100%';
+                            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.9)';
+                            overlay.style.zIndex = '9999'; // Ensure it's above other elements
+                            overlay.style.display = 'flex';
+                            overlay.style.justifyContent = 'center';
+                            overlay.style.alignItems = 'center';
+                            overlay.innerHTML = `<div style="color: white; text-align: center; font-size: 18px;">
+                                                    Please click anywhere to return to fullscreen mode.<br>
+                                                    Auto-reloading in <span id="countdownTimer">${timeLeft}</span> seconds...
+                                                </div>`;
+                            document.body.appendChild(overlay);
+
+                            const countdownSpan = overlay.querySelector('#countdownTimer');
+
+                            // --- Click Handler ---
+                            overlay.addEventListener('click', () => {
+                                console.log("Overlay clicked!");
+                                overlayHasBeenClicked = true;
+                                // Clear the GLOBAL timer ID when clicked
+                                if (window.fullscreenWarningTimerId) {
+                                    clearInterval(window.fullscreenWarningTimerId);
+                                    window.fullscreenWarningTimerId = null;
+                                    console.log("Warning timer cleared by click.");
+                                }
+
+                                // Attempt to re-enter fullscreen (using your existing function)
+                                if (typeof requestFullscreen === 'function') {
+                                    requestFullscreen(); // This will trigger another 'fullscreenchange' on success
+                                } else {
+                                    console.error('requestFullscreen function is not defined.');
+                                    try { document.documentElement.requestFullscreen({ navigationUI: "hide" }); }
+                                    catch(err) { console.error('Fallback fullscreen request failed:', err); }
+                                }
+                                // No need to remove overlay here, the next 'fullscreenchange' handles it
+                            });
+
+                            // --- Timer Interval ---
+                            // Clear any *existing* warning timer before starting a new one
+                            if (window.fullscreenWarningTimerId) {
+                                clearInterval(window.fullscreenWarningTimerId);
+                                console.log("Cleared pre-existing warning timer before starting new one.");
+                            }
+
+                            // Store the new timer ID globally
+                            window.fullscreenWarningTimerId = setInterval(() => {
+                                // If overlay was clicked, the flag is set, and the timer *should* have been cleared.
+                                // This interval callback might still run once more due to timing.
+                                if (overlayHasBeenClicked) {
+                                    // We absolutely should not proceed if the overlay was clicked.
+                                    // Clear again just to be 100% sure (might be redundant).
+                                    if (window.fullscreenWarningTimerId) {
+                                    clearInterval(window.fullscreenWarningTimerId);
+                                    window.fullscreenWarningTimerId = null;
+                                    }
+                                    return;
+                                }
+
+                                timeLeft--;
+                                if (countdownSpan) {
+                                    countdownSpan.textContent = timeLeft;
+                                }
+
+                                // Only reload if time is up AND the overlay was *not* clicked
+                                if (timeLeft <= 0) {
+                                    // Check the click flag one last time before reloading
+                                    if (!overlayHasBeenClicked) {
+                                        console.log("Timer expired, reloading.");
+                                        window.intentionalReload = true; // Mark as intentional due to timer
+                                        if (window.fullscreenWarningTimerId) { // Clear interval before reload
+                                        clearInterval(window.fullscreenWarningTimerId);
+                                        window.fullscreenWarningTimerId = null;
+                                        }
+                                        window.location.reload();
+                                    } else {
+                                        // This case should ideally not happen if clearing works, but good for debugging
+                                        console.log("Timer expired, but overlay was clicked. Preventing reload.");
+                                        if (window.fullscreenWarningTimerId) {
+                                            clearInterval(window.fullscreenWarningTimerId);
+                                            window.fullscreenWarningTimerId = null;
+                                        }
+                                    }
+                                }
+                            }, 1000);
+                            console.log("Started warning timer with ID:", window.fullscreenWarningTimerId);
+
+                        }
+                    // --- Handle Entering Fullscreen ---
+                    } else if (document.fullscreenElement) {
+                        console.log("Entered fullscreen.");
+                        window.intentionalReload = false; // Reset flag
+
+                        // Crucially, clear the warning timer whenever we successfully enter fullscreen
+                        if (window.fullscreenWarningTimerId) {
+                            clearInterval(window.fullscreenWarningTimerId);
+                            window.fullscreenWarningTimerId = null;
+                            console.log("Warning timer cleared due to entering fullscreen.");
+                        }
+
+                        // Remove the warning overlay if it exists
+                        const overlay = document.getElementById('fullscreenOverlay');
+                        if (overlay) {
+                            console.log("Removing fullscreen warning overlay.");
+                            overlay.remove();
+                        }
+
+                    // --- Handle Intentional Exit/Reload ---
+                    } else if (window.intentionalReload) {
+                        console.log("Intentional exit or reload detected.");
+                        // Clear timer just in case something went wrong
+                        if (window.fullscreenWarningTimerId) {
+                            clearInterval(window.fullscreenWarningTimerId);
+                            window.fullscreenWarningTimerId = null;
+                        }
+                    }
+                });
+
+                // Handle all keyboard shortcuts that could exit fullscreen
+                document.addEventListener('keydown', async (e) => {
+                    if (!window.isEvaluationComplete) {
+                        // Handle Escape key
+                        if (e.key === 'Escape' || e.key === 'Esc' || e.keyCode === 27) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
+                            return false;
+                        }
+                        
+                        // Prevent F11 key
+                        if (e.key === 'F11' || e.keyCode === 122) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            requestFullscreen();
+                            return false;
+                        }
+                    }
+                }, true);
+            }
+
+            // Send button functionality
+            const sendButton = document.getElementById('sendButton');
+            const doneButton = document.getElementById('doneButton');
+            
+            if (window.TUTOR_CONFIG.enableEvaluation) {
+                // This check is a bit redundant since we are inside the parent if-block, but it's harmless.
+                // The doneButton is created dynamically, so we can't select it with getElementById here.
+                // We've already ensured it's visible by appending it to the DOM.
+            }
+
+            sendButton.addEventListener('click', async () => {
+                const input = document.querySelector('textarea');
+                if (input.value.trim()) {  // Add trim() to check for non-empty content
+                    input.style.height = 'auto';
+                }
+            });
+        });
+        
+        // Modify the message handling
+        function appendMessage(message) {
+            // Skip system messages
+            if (message.role === 'system') return;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            // Always use clean content for display
+            let content = message.content;
+            if (message.role === 'assistant') {
+                content = content.replace(/\{[^}]*\}/g, '').trim();
+            }
+            
+            messageDiv.textContent = content;
+            messageDiv.classList.add(message.role === 'assistant' ? 'assistant' : 'user');
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+        
+        function showLoading() {
+            // Avoid creating duplicate overlays
+            if (document.getElementById('loadingOverlay')) return;
+            const overlay = document.createElement('div');
+            overlay.className = 'loading-overlay';
+            overlay.id = 'loadingOverlay';
+            
+            const spinner = document.createElement('div');
+            spinner.className = 'loading-spinner';
+            
+            overlay.appendChild(spinner);
+            document.body.appendChild(overlay);
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.remove();
+            }
+        }
+
+        function showCompletionMessage() {
+            const message = document.createElement('div');
+            message.className = 'completion-message';
+            message.innerHTML = `
+                <h3>Evaluation Complete!</h3>
+                <p>Your evaluation has been sent to your teacher's email.</p>
+                <button onclick="this.parentElement.remove()" style="margin-top: 10px; padding: 8px 16px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">OK</button>
+            `;
+            document.body.appendChild(message);
+        }
+    </script>
+    <!-- Add Prism.js for code highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/prism.min.js"></script>
+    <!-- Add Fira Code font for codebreaker mode -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Add local resources -->
+    <link href="/codebreaker.css" rel="stylesheet">
+    <link href="/tutor.css?v=20250903-3" rel="stylesheet">
+    <script src="/protected/tutor-mode.js" defer></script>
+    <script src="/tutor.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Kid-friendly fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Add Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        
+        /* Add styles for language selection */
+        .controls-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .language-select-wrapper {
+            position: relative;
+            display: inline-block; /* Always visible now */
+        }
+
+        .pro-feature-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 8px;
+            z-index: 2;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .language-select {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            background-color: var(--chat-ai-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 120px;
+            transition: all 0.3s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23666666%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.7rem top 50%;
+            background-size: 0.65rem auto;
+            padding-right: 2rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        [data-theme="dark"] .language-select {
+            background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23e2e8f0%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+        }
+
+        .language-select option {
+            background-color: var(--chat-ai-bg);
+            color: var(--text-color);
+            padding: 8px;
+        }
+
+        /* Style for Firefox */
+        @-moz-document url-prefix() {
+            .language-select,
+            .language-select option {
+                color: var(--text-color) !important;
+                background-color: var(--chat-ai-bg) !important;
+            }
+        }
+
+        /* Style for Webkit browsers */
+        .language-select::-webkit-select-list-box,
+        .language-select::-webkit-list-box {
+            background-color: var(--chat-ai-bg);
+            color: var(--text-color);
+        }
+
+        .custom-language {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            margin-top: 0.25rem;
+            background-color: var(--chat-ai-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .language-select:hover,
+        .custom-language:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .language-select:focus,
+        .custom-language:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+
+        .action-button {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 0 5px;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: all 0.2s ease;
+        }
+
+.action-button:hover {
+    background-color: #e0e0e0;
+}
+
+.action-button i {
+    margin-right: 6px;
+}
+
+.image-preview-container {
+    position: relative;
+    display: inline-block;
+    margin: 5px;
+    max-width: 100px;
+    vertical-align: middle;
+}
+
+.image-preview-thumbnail {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+.remove-image-button {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ff4444;
+    color: white;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    padding: 0;
+    line-height: 1;
+}
+
+.message-image {
+    max-width: 300px;
+    max-height: 300px;
+    border-radius: 8px;
+    margin: 10px 0;
+    object-fit: contain;
+}
+
+.button-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 10px;
+}
+.action-button {
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.completion-message {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 1001;
+    text-align: center;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.done-button {
+    position: relative;
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    height: 35px;
+    line-height: 1;
+    margin-left: auto;
+}
+
+.done-button:hover {
+    background: #c82333;
+}
+
+.done-button.action-button {
+    background: #dc3545;
+    margin-left: auto;
+}
+
+.button-container {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    position: relative;
+    z-index: 1000;
+    width: 100%;
+}
+
+.done-button {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    height: 35px;
+    line-height: 1;
+    margin-left: auto;
+    position: relative;
+}
+
+.done-button:hover {
+    background: #c82333;
+}
+
+.done-button.action-button {
+    background: #dc3545;
+    margin-left: auto;
+}
+
+/* Textarea auto-expand styles (kept minimal; main rules live in tutor.css) */
+#userInput {
+    min-height: 72px;
+    max-height: 750px;
+    overflow-y: auto; /* always show scrollbar when overflowing */
+    resize: none;
+}
+
+@media (max-width: 768px) {
+    #userInput { max-height: 50vh; }
+}
+</style>
+</head>
+<body>
+<div id="proBanner" class="pro-banner" style="display: none;">
+<i data-lucide="star"></i> Tutor-Tron Pro - Powered by GPT-5 
+</div>
+<div class="container">
+<div class="header">
+    <div class="header-content">
+        <h1 id="pageTitle">Tutor-Tron AI</h1>
+        <div id="subjectTitle"></div>
+    </div>
+    <div class="controls-wrapper">
+        <div class="language-select-wrapper">
+            <div class="pro-feature-badge">PRO</div>
+            <select id="languageSelect" class="language-select">
+                <option value="English" selected>English</option>
+                <option value="Mandarin">Mandarin</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Punjabi">Punjabi</option>
+                <option value="Spanish">Spanish</option>
+                <option value="Arabic">Arabic</option>
+                <option value="Bengali">Bengali</option>
+                <option value="Portuguese">Portuguese</option>
+                <option value="Russian">Russian</option>
+                <option value="Japanese">Japanese</option>
+                <option value="German">German</option>
+                <option value="Korean">Korean</option>
+                <option value="French">French</option>
+                <option value="Italian">Italian</option>
+                <option value="Turkish">Turkish</option>
+                <option value="Vietnamese">Vietnamese</option>
+                <option value="Telugu">Telugu</option>
+                <option value="Marathi">Marathi</option>
+                <option value="Tamil">Tamil</option>
+                <option value="Urdu">Urdu</option>
+                <option value="Gujarati">Gujarati</option>
+                <option value="Polish">Polish</option>
+                <option value="Ukrainian">Ukrainian</option>
+                <option value="Persian">Persian</option>
+                <option value="Malayalam">Malayalam</option>
+                <option value="Kannada">Kannada</option>
+                <option value="Thai">Thai</option>
+                <option value="Dutch">Dutch</option>
+                <option value="Greek">Greek</option>
+                <option value="Czech">Czech</option>
+                <option value="Swedish">Swedish</option>
+                <option value="other">Other...</option>
+            </select>
+            <input type="text" id="customLanguage" class="custom-language" style="display: none;"
+                placeholder="Enter language...">
+        </div>
+        <div class="theme-toggle-wrapper">
+            <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme">
+                <i data-lucide="sun" class="icon-light"></i>
+                <i data-lucide="moon" class="icon-dark"></i>
+            </button>
+        </div>
+    </div>
+</div>
+<div class="chat-container" id="chatContainer">
+    <!-- Messages will be added here -->
+</div>
+<p style="text-align: center; font-size: 15px; color: #888;">Tutor-Tron can make mistakes. Ask your teacher for clarifications.</p>
+<div class="loading-animation" id="loading" style="display: none;">
+    <div class="loading-text">
+        Tutor-Tron is thinking<span class="loading-dots"></span>
+    </div>
+</div>
+<div class="input-section">
+    <div class="input-container">
+        <textarea id="userInput" rows="1" placeholder="Type your message..."></textarea>
+        <div class="button-container">
+            <label for="imageInput" id="imageUploadButton" class="action-button" style="display: none;">
+                <i class="fas fa-image"></i>
+                Upload Image
+            </label>
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <div id="image-preview-container" class="image-preview-container" style="display: none;">
+                <img id="image-preview-thumbnail" class="image-preview-thumbnail">
+                <button id="remove-image" class="remove-image-button">×</button>
+            </div>
+            <button id="copyButton" class="action-button">
+                <i class="fas fa-copy"></i>
+                Copy Chat
+            </button>
+            <button id="sendButton" class="action-button">
+                <i class="fas fa-paper-plane"></i>
+                Send
+            </button>
+        </div>
+    </div>
+</div>
+<div id="error" style="display: none;">
+    <div class="error-message"></div>
+    <button id="reportError">Report Error</button>
+</div>
+</div>
+<div id="floatingErrorButton" class="floating-error-button">
+Report Console Errors
+</div>
+<script>
+// Initialize Lucide icons (guarded to avoid breaking auto-resize if CDN fails)
+if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+}
+
+// Chat input uses native scrolling; no JS auto-resize
+
+// Theme toggle functionality
+document.getElementById('themeToggle').addEventListener('click', function() {
+    const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+});
+
+// Set initial theme
+const savedTheme = localStorage.getItem('theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
+</script>
+<script type="module" src="css.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'919c3add8b3bbf87',t:'MTc0MDg2OTYwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

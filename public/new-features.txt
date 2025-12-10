@@ -1,0 +1,5 @@
+=== Feature Requests Log ===
+This file will be automatically updated with new feature requests.
+
+Submit your feature requests using the "Request Feature" button in the app!
+======================== 

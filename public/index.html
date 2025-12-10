@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutor-Tron - AI-Powered Learning</title>
+    <link rel="icon" type="image/png" class="brightness" href="https://favicon-1v5.pages.dev/favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <iframe 
+        id="landing-page"
+        src="https://landing-page-tutortron.dizon-dzn12.workers.dev/" 
+        title="Tutor-Tron Landing Page"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowfullscreen>
+    </iframe>
+
+    <script>
+        let landingPageUrl = 'https://landing-page-tutortron.dizon-dzn12.workers.dev/';
+        const iframe = document.getElementById('landing-page');
+
+        // Store the initial state
+        if (history.state === null) {
+            history.replaceState({ page: 'landing' }, '', '/');
+        }
+
+        // Handle messages from the iframe
+        window.addEventListener('message', function(event) {
+            if (event.origin === 'https://landing-page-tutortron.dizon-dzn12.workers.dev') {
+                const { type, url } = event.data;
+                if (type === 'navigation') {
+                    // Store current scroll position
+                    sessionStorage.setItem('scrollPosition', window.scrollY);
+                    // Redirect to the full URL
+                    window.location.replace(url);
+                }
+            }
+        });
+
+        // Handle back/forward navigation
+        window.addEventListener('popstate', function(event) {
+            if (window.location.pathname === '/') {
+                // Don't reload the iframe, just ensure it's visible
+                iframe.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+                // Restore scroll position if available
+                const scrollPosition = sessionStorage.getItem('scrollPosition');
+                if (scrollPosition) {
+                    window.scrollTo(0, parseInt(scrollPosition));
+                    sessionStorage.removeItem('scrollPosition');
+                }
+            }
+        });
+
+        // Initial load
+        window.addEventListener('load', function() {
+            if (window.location.pathname === '/') {
+                iframe.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+        });
+    </script>
+</body>
+</html>
