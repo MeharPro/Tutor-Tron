@@ -123,7 +123,7 @@ async function searchImage(query) {
         const simplifiedQuery = simplifySearchQuery(query);
 
         // Fallback to Pixabay
-        const apiKey = '48005232-8a2e6b19f729a51341918481a'; // Replace with your API Key
+      
         const pixabayUrl = `https://pixabay.com/api/?key=${apiKey}&q=${encodeURIComponent(simplifiedQuery)}&image_type=photo&orientation=horizontal&safesearch=true&per_page=20`;
 
         const response = await fetch(pixabayUrl);
